@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Travel Planner · SafarSaarthi</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ["Inter","ui-sans-serif","system-ui"],
+            serif:["Fraunces","ui-serif"]
+          },
+          colors:{
+            brand:{
+              50:"#f0fdfa",100:"#ccfbf1",200:"#99f6e4",300:"#5eead4",
+              400:"#2dd4bf",500:"#14b8a6",600:"#0d9488",700:"#0f766e",
+              800:"#115e59",900:"#134e4a"
+            }
+          },
+          boxShadow:{ float:"0 12px 40px rgba(20,184,166,.25)", "float-dark":"0 12px 40px rgba(20,184,166,.15)" },
+          transitionTimingFunction:{ elastic:"cubic-bezier(.68,-.55,.27,1.55)" }
+        }
+      }
+    }
+  </script>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fraunces:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+
+  <!-- Swiper -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+
+  <style>
+    :root {
+      --blob: radial-gradient(35% 40% at 20% 20%, rgba(20,184,166,.15), transparent 60%),
+              radial-gradient(30% 35% at 80% 30%, rgba(129,140,248,.12), transparent 60%);
+      --bg-color:#0f172a; --glass-bg:rgba(30,41,59,.55); --card-bg:#111827;
+      --card-elev:#1f2937; --text:#e2e8f0; --muted:#94a3b8;
+      --ring:#334155; --fade: rgba(17,24,39,.95); --fade-ring: rgba(51,65,85,.8);
+      --safe-top: env(safe-area-inset-top); --safe-bot: env(safe-area-inset-bottom);
+    }
+    html, body { height: 100%; }
+    body {
+      background: linear-gradient(180deg, var(--bg-color), #0b2b3a 50%, var(--card-elev) 90%) fixed;
+      color: var(--text);
+      padding-top: calc(64px + var(--safe-top));
+    }
+    .blob-bg { background-image: var(--blob); }
+    .glass { background: var(--glass-bg); backdrop-filter: blur(16px); border-color: var(--ring); }
+    .card { background: var(--card-bg); border-color: var(--ring); transition: transform .3s ease, box-shadow .3s ease; }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+    .btn-primary { background: linear-gradient(to right,#14b8a6,#0d9488); }
+    .btn-primary:active { transform: scale(.98); }
+    .reveal { opacity: 0; transform: translateY(24px); transition: all .8s cubic-bezier(.2,.6,.2,1); transition-delay: var(--delay,0s); }
+    .reveal.show { opacity: 1; transform: translateY(0); }
+
+    /* Scroll helpers */
+    .scroll-hint { mask-image: linear-gradient(to right, black 90%, transparent 100%); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+
+    /* Deck right controls */
+    .deck-holder { position: relative; }
+    .deck-next {
+      position: absolute; right: .5rem; top: 50%; transform: translateY(-50%);
+      height: 40px; width: 40px; border-radius: 9999px; display: grid; place-items: center;
+      background: var(--fade); color: #e2e8f0; border: 1px solid var(--fade-ring);
+      box-shadow: 0 8px 24px rgba(0,0,0,.18); transition: .2s ease; z-index: 5;
+    }
+    .deck-next:hover { transform: translateY(-50%) scale(1.05); }
+    .deck-fade { pointer-events: none; position: absolute; inset-inline-end: 0; top: 0; bottom: 0; width: 72px;
+      background: linear-gradient(to left, var(--fade) 40%, transparent 100%);
+      border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; z-index: 4; }
+    @media (min-width:768px){ .deck-fade{ width:96px } }
+
+    /* Overlay captions */
+    .overlay-card { position: absolute; inset: 0; background-image: linear-gradient(to top, rgba(0,0,0,.65), transparent); padding: 1rem; color: #fff; display: flex; align-items: end; }
+    .overlay-card h4 { font-weight: 700; font-size: 1.125rem; }
+
+    /* Chips (mobile: horizontal scroll; larger: wrap) */
+    .chip-row { gap:.5rem; }
+    @media (max-width: 639.5px){
+      .chip-row { display:flex; overflow-x:auto; padding-bottom:.25rem; }
+      .chip-row::-webkit-scrollbar{ display:none; }
+    }
+    @media (min-width:640px){
+      .chip-row { display:flex; flex-wrap:wrap; }
+    }
+    .chip { padding:.4rem .8rem; border-radius:9999px; font-size:.85rem; background:#e2e8f0; color:#0f172a; transition: transform .15s; white-space: nowrap; }
+    .chip:active { transform: scale(.97); }
+
+    /* Videos keep aspect */
+    .ratio { position: relative; width: 100%; }
+    .ratio::before { content: ""; display: block; padding-top: 56.25%; }
+    .ratio > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    /* Trips sizing */
+    #trips .card { background: rgba(255,255,255,0.06); backdrop-filter: blur(8px); }
+    #trips .state-card{
+      min-width: clamp(220px, 76vw, 320px);
+      height: clamp(180px, 36vh, 240px);
+      transform: translateZ(0);
+    }
+    @media (min-width: 240px){ /* sm */
+      #trips .state-card{ min-width: clamp(240px, 48vw, 340px); height: clamp(200px, 34vh, 260px); }
+    }
+    @media (min-width: 768px){ /* md */
+      #trips .state-card{ min-width: clamp(260px, 42vw, 340px); height: clamp(210px, 32vh, 260px); }
+    }
+    @media (min-width: 1024px){ /* lg */
+      #trips .state-card{ min-width: 280px; height: 220px; }
+    }
+    #trips .deck-holder .deck{ padding-inline: .125rem; }
+    @media (min-width:420px){ #trips .deck-holder .deck{ padding-inline: .25rem; } }
+
+    /* Swiper slide width */
+    .swiper-slide { width: clamp(240px, 70vw, 320px) !important; }
+    @media (min-width:640px){ .swiper-slide { width: clamp(260px, 44vw, 340px) !important; } }
+    @media (min-width:1024px){ .swiper-slide { width: 320px !important; } }
+
+    /* Popups safe-area */
+    .popup .card { margin-bottom: var(--safe-bot); }
+  </style>
+</head>
+
+<body class="text-slate-100 antialiased selection:bg-brand-700">
+  <!-- Header -->
+  <header class="fixed inset-x-0 top-0 z-50">
+    <div class="mx-auto max-w-7xl px-3 sm:px-4">
+      <div class="mt-2 sm:mt-4 mb-2 sm:mb-3 flex items-center justify-between rounded-2xl glass ring-1 px-3 sm:px-4 py-2.5 sm:py-3 shadow-float-dark">
+        <a href="#home" class="flex items-center gap-3">
+          <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-600 text-white shadow" aria-label="SafarSaarthi Home"><i class="fa-solid fa-compass"></i></span>
+          <span class="font-extrabold tracking-tight text-white">SafarSaarthi</span>
+        </a>
+        <nav class="hidden md:flex items-center gap-6 text-[15px] font-semibold text-slate-200">
+          <a class="hover:text-brand-200" href="#trips">Trips</a>
+          <a class="hover:text-brand-200" href="#tickets">Tickets</a>
+          <a class="hover:text-brand-200" href="#section9">Hotels</a>
+          <a class="hover:text-brand-200" href="#section9">Cabs</a>
+          <a class="hover:text-brand-200" href="#section9">Food</a>
+        </nav>
+        <button id="menuBtn" class="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/70 text-white" aria-controls="mobileMenu" aria-expanded="false" aria-label="Open Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+      <div id="mobileMenu" class="hidden md:hidden -mt-1 sm:-mt-2 mb-3 sm:mb-4 rounded-2xl glass ring-1 p-2 sm:p-4 text-slate-100">
+        <a class="block px-3 py-2.5 rounded-lg hover:bg-white/10" href="#trips">Trips</a>
+        <a class="block px-3 py-2.5 rounded-lg hover:bg-white/10" href="#tickets">Tickets</a>
+        <a class="block px-3 py-2.5 rounded-lg hover:bg-white/10" href="#section9">Hotels</a>
+        <a class="block px-3 py-2.5 rounded-lg hover:bg-white/10" href="#section9">Cabs</a>
+        <a class="block px-3 py-2.5 rounded-lg hover:bg-white/10" href="#section9">Food</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section id="home" class="pt-6 sm:pt-8 md:pt-10">
+  <div class="relative overflow-hidden">
+    <div class="absolute inset-0 -z-10 blob-bg"></div>
+
+    <div class="relative h-[64vh] sm:h-[72vh] md:h-[80vh]">
+      <!-- Background Video -->
+      <video
+        id="heroVideo"
+        class="absolute inset-0 w-full h-full object-cover rounded-b-[1.5rem] sm:rounded-b-[2.25rem]"
+           
+        autoplay muted loop playsinline webkit-playsinline preload="metadata"
+      >
+        <source src="image/travel.mp4" type="video/mp4"/>
+        <!-- Add additional sources if you have (e.g., webm) -->
+      </video>
+
+      <!-- Gradient overlay -->
+      <div class="absolute inset-0 rounded-b-[1.5rem] sm:rounded-b-[2.25rem] bg-gradient-to-t from-slate-900/80 via-slate-900/40 to-transparent"></div>
+
+      <!-- Content -->
+      <div class="absolute inset-0 grid place-items-center px-4">
+        <div class="text-center text-white max-w-3xl mx-auto">
+          <p class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 sm:px-4 py-1 text-xs sm:text-sm ring-1 ring-white/25 backdrop-blur">
+            <span class="h-2 w-2 rounded-full bg-emerald-300 animate-pulse"></span> Your one-stop travel utility
+          </p>
+          <h1 class="mt-4 sm:mt-5 text-3xl sm:text-5xl md:text-6xl font-extrabold font-serif tracking-tight drop-shadow-lg">
+            Plan. Book. Go.
+          </h1>
+          <p class="mx-auto mt-3 sm:mt-4 max-w-2xl text-base sm:text-lg md:text-xl text-white/90">
+            States, tickets, stays, cabs & food—curated in one place.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- (Optional) Respect reduced motion & pause when page is hidden -->
+  <script>
+    (function () {
+      const v = document.getElementById('heroVideo');
+      if (!v) return;
+
+      // Honor reduced motion
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prefersReduced) { v.removeAttribute('autoplay'); v.pause(); }
+
+      // Try to autoplay (mobile browsers sometimes need a nudge)
+      v.play().catch(() => { /* ignored */ });
+
+      // Pause when tab not visible
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) v.pause(); else v.play().catch(()=>{});
+      }, { passive: true });
+    })();
+  </script>
+</section>
+
+
+  <!-- Trips -->
+  <section id="trips" class="mx-auto max-w-7xl px-3 sm:px-4 py-10 sm:py-14">
+  <!-- Local styles scoped to #trips -->
+  <style>
+    /* Deck layout */
+    #trips .deck {
+      display: flex; gap: .75rem; /* sm:gap applied inline */
+      overflow-x: auto; scroll-snap-type: x mandatory;
+      padding: .25rem .25rem .5rem; /* keep first/last card visible */
+    }
+    /* Hide native scrollbar but keep scrolling */
+    #trips .deck::-webkit-scrollbar { display: none; }
+    #trips .deck { scrollbar-width: none; -ms-overflow-style: none; }
+
+    /* Card sizing – fluid across breakpoints */
+    #trips .state-card{
+      position: relative;
+      min-width: clamp(220px, 70vw, 320px);
+      height: clamp(180px, 36vh, 240px);
+      scroll-snap-align: start;
+      border-radius: 14px; overflow: hidden;
+      transform: translateZ(0);
+    }
+    @media (min-width:640px){ /* sm */
+      #trips .state-card{ min-width: clamp(240px, 44vw, 340px); height: clamp(200px, 34vh, 260px); }
+    }
+    @media (min-width:1024px){ /* lg */
+      #trips .state-card{ min-width: 280px; height: 220px; }
+    }
+
+    /* Overlay text */
+    #trips .overlay{
+      position:absolute; inset:0; display:flex; align-items:flex-end; color:#fff;
+      padding:.75rem 1rem; background:linear-gradient(to top, rgba(0,0,0,.65), transparent);
+    }
+
+    /* Scroll hint fade edges */
+    #trips .scroll-hint { position: relative; }
+    #trips .scroll-hint::after{
+      content:""; position:absolute; right:0; top:0; bottom:0; width:72px; pointer-events:none;
+      background:linear-gradient(to left, rgba(15,23,42,.85), rgba(15,23,42,0));
+      border-top-right-radius: .75rem; border-bottom-right-radius: .75rem;
+    }
+    @media (min-width:768px){ #trips .scroll-hint::after{ width:96px; } }
+
+    /* Right nudge button */
+    #trips .deck-next{
+      position:absolute; right:.5rem; top:50%; transform:translateY(-50%);
+      height:40px; width:40px; display:grid; place-items:center; border-radius:9999px;
+      background:rgba(2,6,23,.75); border:1px solid rgba(100,116,139,.4); color:#e2e8f0;
+      box-shadow:0 8px 24px rgba(0,0,0,.22); z-index:5; transition:transform .15s ease;
+    }
+    #trips .deck-next:hover{ transform:translateY(-50%) scale(1.05); }
+
+    /* Search input styling tweaks */
+    #trips .search-input::placeholder{ color:rgba(226,232,240,.8); }
+    #trips .search-input:focus{ outline: none; box-shadow: 0 0 0 3px rgba(20,184,166,.35); }
+
+    /* Highlight pulse when jumped-to */
+    @keyframes cardPulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(20,184,166,.0); }
+      40%{ transform: scale(1.02); box-shadow: 0 12px 30px rgba(20,184,166,.35); }
+      100%{ transform: scale(1); box-shadow: 0 0 0 0 rgba(20,184,166,.0); }
+    }
+    #trips .pulse { animation: cardPulse 900ms ease; }
+  </style>
+
+  <!-- Title + Search -->
+  <div class="reveal mb-5 sm:mb-7">
+    <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold font-serif text-white text-center">Explore by State</h2>
+
+    <div class="mt-4 mx-auto max-w-xl flex items-stretch gap-2">
+      <div class="flex-1 relative">
+        <input
+          id="stateSearch"
+          class="search-input w-full rounded-xl bg-white/10 text-white placeholder-white/80 ring-1 ring-white/20 px-4 py-2.5"
+          type="search"
+          placeholder="Search a state or UT (e.g., Kerala, J&K, UP)…"
+          list="stateOptions"
+          autocomplete="off"
+          aria-label="Search states"
+        />
+        <datalist id="stateOptions">
+          <!-- List kept alphabetical; add short forms too -->
+          <option value="Andaman & Nicobar"></option>
+          <option value="Andhra Pradesh"></option>
+          <option value="Arunachal Pradesh"></option>
+          <option value="Assam"></option>
+          <option value="Bihar"></option>
+          <option value="Chhattisgarh"></option>
+          <option value="Goa"></option>
+          <option value="Gujarat"></option>
+          <option value="Haryana"></option>
+          <option value="Himachal"></option>
+          <option value="Jammu & Kashmir"></option>
+          <option value="Jharkhand"></option>
+          <option value="Karnataka"></option>
+          <option value="Kerala"></option>
+          <option value="Ladakh"></option>
+          <option value="Lakshadweep"></option>
+          <option value="Madhya Pradesh"></option>
+          <option value="Maharashtra"></option>
+          <option value="Manipur"></option>
+          <option value="Meghalaya"></option>
+          <option value="Mizoram"></option>
+          <option value="Nagaland"></option>
+          <option value="Odisha"></option>
+          <option value="Punjab"></option>
+          <option value="Rajasthan"></option>
+          <option value="Sikkim"></option>
+          <option value="Tamil Nadu"></option>
+          <option value="Telangana"></option>
+          <option value="Tripura"></option>
+          <option value="Uttar Pradesh"></option>
+          <option value="Uttarakhand"></option>
+          <option value="West Bengal"></option>
+          <!-- Short forms users might type -->
+          <option value="J&K"></option>
+          <option value="UP"></option>
+          <option value="TN"></option>
+          <option value="MP"></option>
+          <option value="WB"></option>
+          <option value="HP"></option>
+        </datalist>
+      </div>
+      <button id="searchBtn" class="rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-[.98] text-white font-semibold px-4">
+        Find
+      </button>
+    </div>
+    <p class="mt-2 text-center text-slate-200/80 text-xs sm:text-sm">Tip: hit Enter or tap Find — we’ll scroll to it.</p>
+  </div>
+
+  <!-- Single Deck Wrapper (with right nudge) -->
+  <div class="relative reveal card rounded-2xl ring-1 p-3 sm:p-4 scroll-hint">
+    <div id="singleDeck" class="deck gap-3 sm:gap-4">
+      <!-- A + UTs -->
+      <a id="andaman" data-key="andaman andaman & nicobar andaman and nicobar andaman-nicobar" class="state-card ring-1 ring-slate-700" href="andaman.html">
+        <img src="image/andaman.jpg" class="w-full h-full object-cover" alt="Andaman & Nicobar" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Andaman & Nicobar</h4><p class="text-white/90 text-xs">Paradise Awaits</p></div></div>
+      </a>
+      <a id="andhra" data-key="andhra andhra pradesh ap" class="state-card ring-1 ring-slate-700" href="andhra.html">
+        <img src="image/Andhra-Pradsesh.jpeg" class="w-full h-full object-cover" alt="Andhra Pradesh" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Andhra Pradesh</h4><p class="text-white/90 text-xs">Coast & Temples</p></div></div>
+      </a>
+      <a id="arunachal" data-key="arunachal arunachal pradesh" class="state-card ring-1 ring-slate-700" href="arunachal.html">
+        <img src="image/arunanchal.jpg" class="w-full h-full object-cover" alt="Arunachal Pradesh" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Arunachal Pradesh</h4><p class="text-white/90 text-xs">Mystic Mountains</p></div></div>
+      </a>
+      <a id="assam" data-key="assam" class="state-card ring-1 ring-slate-700" href="assam.html">
+        <img src="image/assam.webp" class="w-full h-full object-cover" alt="Assam" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Assam</h4><p class="text-white/90 text-xs">Tea & Wild</p></div></div>
+      </a>
+      <a id="bihar" data-key="bihar" class="state-card ring-1 ring-slate-700" href="bihar.html">
+        <img src="image/Bihar.png" class="w-full h-full object-cover" alt="Bihar" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Bihar</h4><p class="text-white/90 text-xs">Spiritual Roots</p></div></div>
+      </a>
+
+      <!-- C / G / H -->
+      <a id="chhattisgarh" data-key="chhattisgarh cg" class="state-card ring-1 ring-slate-700" href="chattisgarh.html">
+        <img src="image/chattisgarh.jpeg" class="w-full h-full object-cover" alt="Chhattisgarh" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Chhattisgarh</h4><p class="text-white/90 text-xs">Tribal & Falls</p></div></div>
+      </a>
+      <a id="goa" data-key="goa" class="state-card ring-1 ring-slate-700" href="goa.html">
+        <img src="image/goa.jpg" class="w-full h-full object-cover" alt="Goa" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Goa</h4><p class="text-white/90 text-xs">Sun & Sea</p></div></div>
+      </a>
+      <a id="gujarat" data-key="gujarat" class="state-card ring-1 ring-slate-700" href="gujarat.html">
+        <img src="image/gujarat.jpg" class="w-full h-full object-cover" alt="Gujarat" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Gujarat</h4><p class="text-white/90 text-xs">Rann & Heritage</p></div></div>
+      </a>
+      <a id="haryana" data-key="haryana" class="state-card ring-1 ring-slate-700" href="haryana.html">
+        <img src="image/haryana.jpg" class="w-full h-full object-cover" alt="Haryana" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Haryana</h4><p class="text-white/90 text-xs">Heritage to Greens</p></div></div>
+      </a>
+      <a id="himachal" data-key="himachal hp himachal pradesh" class="state-card ring-1 ring-slate-700" href="himachal.html">
+        <img src="image/himchal.jpg" class="w-full h-full object-cover" alt="Himachal" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Himachal</h4><p class="text-white/90 text-xs">Alpine Bliss</p></div></div>
+      </a>
+
+      <!-- J to M -->
+      <a id="jammu-kashmir" data-key="jammu & kashmir jammu and kashmir j&k jk" class="state-card ring-1 ring-slate-700" href="jammu.html">
+        <img src="image/j&k.webp" class="w-full h-full object-cover" alt="Jammu & Kashmir" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Jammu & Kashmir</h4><p class="text-white/90 text-xs">Heaven on Earth</p></div></div>
+      </a>
+      <a id="jharkhand" data-key="jharkhand" class="state-card ring-1 ring-slate-700" href="jharkhand.html">
+        <img src="image/jharkhand.jpg" class="w-full h-full object-cover" alt="Jharkhand" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Jharkhand</h4><p class="text-white/90 text-xs">Woods & Culture</p></div></div>
+      </a>
+      <a id="karnataka" data-key="karnataka" class="state-card ring-1 ring-slate-700" href="karnataka.html">
+        <img src="image/karnataka.jpg" class="w-full h-full object-cover" alt="Karnataka" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Karnataka</h4><p class="text-white/90 text-xs">Peaks to Palaces</p></div></div>
+      </a>
+      <a id="kerala" data-key="kerala" class="state-card ring-1 ring-slate-700" href="kerala.html">
+        <img src="image/kerala.jpg" class="w-full h-full object-cover" alt="Kerala" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Kerala</h4><p class="text-white/90 text-xs">Backwaters</p></div></div>
+      </a>
+      <a id="ladakh" data-key="ladakh" class="state-card ring-1 ring-slate-700" href="ladakh.html">
+        <img src="image/ladakh.webp" class="w-full h-full object-cover" alt="Ladakh" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Ladakh</h4><p class="text-white/90 text-xs">High Desert</p></div></div>
+      </a>
+      <a id="lakshadweep" data-key="lakshadweep" class="state-card ring-1 ring-slate-700" href="lakshadweep.html">
+        <img src="image/lakshadweep.webp" class="w-full h-full object-cover" alt="Lakshadweep" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Lakshadweep</h4><p class="text-white/90 text-xs">Blue Lagoons</p></div></div>
+      </a>
+      <a id="madhya-pradesh" data-key="madhya pradesh mp" class="state-card ring-1 ring-slate-700" href="https://surajkaransingh.github.io/SafarSaarthi.mp/">
+        <img src="image/madhya-pradesh.jpg" class="w-full h-full object-cover" alt="Madhya Pradesh" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Madhya Pradesh</h4><p class="text-white/90 text-xs">Heart of India</p></div></div>
+      </a>
+      <a id="maharashtra" data-key="maharashtra mh" class="state-card ring-1 ring-slate-700" href="maharashtra.html">
+        <img src="image/maharashtra.jpg" class="w-full h-full object-cover" alt="Maharashtra" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Maharashtra</h4><p class="text-white/90 text-xs">Beyond Mumbai</p></div></div>
+      </a>
+      <a id="manipur" data-key="manipur" class="state-card ring-1 ring-slate-700" href="manipur.html">
+        <img src="image/manipur.jpg" class="w-full h-full object-cover" alt="Manipur" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Manipur</h4><p class="text-white/90 text-xs">Culture & Lakes</p></div></div>
+      </a>
+      <a id="meghalaya" data-key="meghalaya" class="state-card ring-1 ring-slate-700" href="meghalaya.html">
+        <img src="image/meghalaya.jpg" class="w-full h-full object-cover" alt="Meghalaya" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Meghalaya</h4><p class="text-white/90 text-xs">Living Roots</p></div></div>
+      </a>
+      <a id="mizoram" data-key="mizoram" class="state-card ring-1 ring-slate-700" href="mizoram.html">
+        <img src="image/mizoram.jpg" class="w-full h-full object-cover" alt="Mizoram" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Mizoram</h4><p class="text-white/90 text-xs">Green Hills</p></div></div>
+      </a>
+      <a id="nagaland" data-key="nagaland" class="state-card ring-1 ring-slate-700" href="nagaland.html">
+        <img src="image/nagaland.jpg" class="w-full h-full object-cover" alt="Nagaland" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Nagaland</h4><p class="text-white/90 text-xs">Festivals</p></div></div>
+      </a>
+
+      <!-- O to W -->
+      <a id="odisha" data-key="odisha orissa" class="state-card ring-1 ring-slate-700" href="odisha.html">
+        <img src="image/odisha.jpg" class="w-full h-full object-cover" alt="Odisha" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Odisha</h4><p class="text-white/90 text-xs">Konark & Coast</p></div></div>
+      </a>
+      <a id="punjab" data-key="punjab" class="state-card ring-1 ring-slate-700" href="punjab.html">
+        <img src="image/punjab.webp" class="w-full h-full object-cover" alt="Punjab" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Punjab</h4><p class="text-white/90 text-xs">Vibe & Food</p></div></div>
+      </a>
+      <a id="rajasthan" data-key="rajasthan" class="state-card ring-1 ring-slate-700" href="rajasthan.html">
+        <img src="image/rajasthan.jpg" class="w-full h-full object-cover" alt="Rajasthan" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Rajasthan</h4><p class="text-white/90 text-xs">Royal Forts</p></div></div>
+      </a>
+      <a id="sikkim" data-key="sikkim" class="state-card ring-1 ring-slate-700" href="sikkim.html">
+        <img src="image/sikkim.jpg" class="w-full h-full object-cover" alt="Sikkim" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Sikkim</h4><p class="text-white/90 text-xs">Himalayan Jewel</p></div></div>
+      </a>
+      <a id="tamil-nadu" data-key="tamil nadu tn tamilnadu" class="state-card ring-1 ring-slate-700" href="tamilnadu.html">
+        <img src="image/tamilnadu.jpg" class="w-full h-full object-cover" alt="Tamil Nadu" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Tamil Nadu</h4><p class="text-white/90 text-xs">Temple Trails</p></div></div>
+      </a>
+      <a id="telangana" data-key="telangana" class="state-card ring-1 ring-slate-700" href="telangana.html">
+        <img src="image/telangana.jpg" class="w-full h-full object-cover" alt="Telangana" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Telangana</h4><p class="text-white/90 text-xs">Forts & Flavours</p></div></div>
+      </a>
+      <a id="tripura" data-key="tripura" class="state-card ring-1 ring-slate-700" href="tripura.html">
+        <img src="image/tripura.jpg" class="w-full h-full object-cover" alt="Tripura" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Tripura</h4><p class="text-white/90 text-xs">Royal Echoes</p></div></div>
+      </a>
+      <a id="uttar-pradesh" data-key="uttar pradesh up" class="state-card ring-1 ring-slate-700" href="uttar.html">
+        <img src="image/upstate.webp" class="w-full h-full object-cover" alt="Uttar Pradesh" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Uttar Pradesh</h4><p class="text-white/90 text-xs">Historic Spine</p></div></div>
+      </a>
+      <a id="uttarakhand" data-key="uttarakhand uk uttaranchal" class="state-card ring-1 ring-slate-700" href="uttrakhand.html">
+        <img src="image/uttarakhand.jpg" class="w-full h-full object-cover" alt="Uttarakhand" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">Uttarakhand</h4><p class="text-white/90 text-xs">Dev Bhoomi</p></div></div>
+      </a>
+      <a id="west-bengal" data-key="west bengal wb" class="state-card ring-1 ring-slate-700" href="westbengal.html">
+        <img src="image/westbengal.jpg" class="w-full h-full object-cover" alt="West Bengal" loading="lazy" width="640" height="360">
+        <div class="overlay"><div><h4 class="font-bold">West Bengal</h4><p class="text-white/90 text-xs">Culture Flow</p></div></div>
+      </a>
+    </div>
+
+    <!-- Right nudge -->
+    <button id="deckNudge" class="deck-next" aria-label="Scroll right"><i class="fa-solid fa-chevron-right"></i></button>
+  </div>
+
+  <!-- Quick jump chips (optional, can remove if you want only search) -->
+  
+
+  <!-- Script: search + jump + nudge -->
+  <script>
+    (function(){
+      const deck = document.getElementById('singleDeck');
+      const search = document.getElementById('stateSearch');
+      const btn = document.getElementById('searchBtn');
+      const nudge = document.getElementById('deckNudge');
+
+      const norm = (s) => (s||"").toLowerCase().replace(/[^a-z0-9& ]+/g," ").replace(/\s+/g," ").trim();
+
+      // Index all cards for fuzzy includes
+      const cards = Array.from(deck.querySelectorAll('.state-card'));
+      const index = cards.map(el => ({
+        el,
+        id: el.id,
+        key: norm(el.dataset.key || el.id.replace(/-/g,' '))
+      }));
+
+      function scrollToCard(el){
+        if(!el) return;
+        const left = el.offsetLeft - deck.clientWidth * 0.05; // small inset
+        deck.scrollTo({ left, behavior: 'smooth' });
+        el.classList.add('pulse','ring-2','ring-brand-500');
+        setTimeout(()=>el.classList.remove('pulse','ring-2','ring-brand-500'), 950);
+      }
+
+      function findBest(query){
+        const q = norm(query);
+        if(!q) return null;
+        // Direct id match
+        const direct = index.find(x => x.id === q.replace(/\s/g,'-'));
+        if(direct) return direct.el;
+
+        // Contains match over data-key
+        let best = null, bestScore = -1;
+        for(const x of index){
+          // simple scoring: longer overlap gets higher score
+          if(x.key.includes(q)){
+            const score = q.length;
+            if(score > bestScore){ bestScore = score; best = x.el; }
+          }
+        }
+        // Common short-forms map
+        if(!best){
+          const map = {
+            "j&k":"jammu-kashmir","jk":"jammu-kashmir",
+            "up":"uttar-pradesh","tn":"tamil-nadu","mp":"madhya-pradesh",
+            "wb":"west-bengal","hp":"himachal"
+          };
+          const mapped = map[q];
+          if(mapped){ best = document.getElementById(mapped); }
+        }
+        return best;
+      }
+
+      function doSearch(){
+        const val = search.value;
+        const el = findBest(val);
+        if(el) scrollToCard(el);
+      }
+
+      btn.addEventListener('click', doSearch);
+      search.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') doSearch(); });
+
+      // Expose quick jump for chips
+      
+
+      // Right nudge button
+      nudge.addEventListener('click', ()=> {
+        const scrollBy = Math.max(deck.clientWidth * 0.9, 240);
+        deck.scrollBy({ left: scrollBy, behavior: 'smooth' });
+      });
+
+      // Fade (optional: hide nudge at end)
+      const toggleNudge = () => {
+        const atEnd = Math.ceil(deck.scrollLeft + deck.clientWidth) >= deck.scrollWidth - 2;
+        nudge.style.opacity = atEnd ? .0 : 1;
+      };
+      deck.addEventListener('scroll', toggleNudge, { passive:true });
+      window.addEventListener('resize', toggleNudge);
+      toggleNudge();
+    })();
+  </script>
+</section>
+
+
+  <!-- Motivation Banner -->
+  <section class="relative min-h-[44vh] sm:min-h-[52vh] md:min-h-[60vh] grid place-items-center overflow-hidden">
+  <!-- Background video -->
+  <video
+    id="motivationVideo"
+    class="absolute inset-0 w-full h-full object-cover -z-10"
+    autoplay
+    muted
+    loop
+    playsinline
+    webkit-playsinline
+    preload="metadata"
+    
+  >
+    <source src="image/travel1.mp4" type="video/mp4" />
+    <!-- You can add more sources like WebM for better browser support -->
+    Your browser does not support the video tag.
+  </video>
+
+  <!-- Overlay -->
+  <div class="absolute inset-0 bg-black/45"></div>
+
+  <!-- Centered quote -->
+  <div class="relative text-center px-4 sm:px-6">
+    <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-white reveal">
+      “Jobs fill your pocket, but adventures fill your soul.”
+    </h2>
+    <p class="text-brand-200 mt-2 reveal" style="--delay:.1s">
+      — SafarSaarthi inspires your next great escape
+    </p>
+  </div>
+
+  <!-- Optional JS: pause on tab switch, respect reduced motion -->
+  <script>
+    (function () {
+      const v = document.getElementById('motivationVideo');
+      if (!v) return;
+
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prefersReduced) {
+        v.removeAttribute('autoplay');
+        v.pause();
+      }
+
+      // Auto play safely
+      v.play().catch(() => {});
+
+      // Pause when tab not visible
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) v.pause(); else v.play().catch(() => {});
+      });
+    })();
+  </script>
+</section>
+
+
+  <!-- Tickets (Swiper) -->
+  <section id="tickets" class="mx-auto max-w-7xl px-3 sm:px-4 py-12 sm:py-16">
+    <div class="reveal mb-6 sm:mb-8 text-center">
+      <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold font-serif text-white">Ticket Booking Platforms</h2>
+      <p class="mt-2 text-slate-200/90 text-sm sm:text-base">Trains · Flights · Buses</p>
+    </div>
+
+    <div class="reveal card rounded-2xl ring-1 p-4 sm:p-6">
+      <div class="swiper mySwiper">
+        <div class="swiper-wrapper">
+          <!-- Slides -->
+          <div class="swiper-slide">
+            <div class="card rounded-2xl ring-1 p-4 sm:p-5 text-center h-full">
+              <img src="image/irctc.jpg" alt="IRCTC" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto mb-3 object-cover" loading="lazy" decoding="async"/>
+              <h3 class="font-semibold">IRCTC</h3>
+              <p class="text-sm text-slate-400 mt-1">Book train tickets across India.</p>
+              <a href="https://www.irctc.co.in/" target="_blank" rel="noopener" class="inline-block mt-3 px-3 py-1.5 rounded-xl btn-primary text-white text-sm">Book Now</a>
+            </div>
+          </div>
+          <div class="swiper-slide">
+            <div class="card rounded-2xl ring-1 p-4 sm:p-5 text-center h-full">
+              <img src="image/redbus.png" alt="Redbus" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto mb-3 object-cover" loading="lazy" decoding="async"/>
+              <h3 class="font-semibold">Redbus</h3>
+              <p class="text-sm text-slate-400 mt-1">Bus tickets & more.</p>
+              <a href="https://www.redbus.in/" target="_blank" rel="noopener" class="inline-block mt-3 px-3 py-1.5 rounded-xl btn-primary text-white text-sm">Book Now</a>
+            </div>
+          </div>
+          <div class="swiper-slide">
+            <div class="card rounded-2xl ring-1 p-4 sm:p-5 text-center h-full">
+              <img src="image/makemytrip.webp" alt="MakeMyTrip" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto mb-3 object-cover" loading="lazy" decoding="async"/>
+              <h3 class="font-semibold">MakeMyTrip</h3>
+              <p class="text-sm text-slate-400 mt-1">Trains, buses, flights.</p>
+              <a href="https://www.makemytrip.com/" target="_blank" rel="noopener" class="inline-block mt-3 px-3 py-1.5 rounded-xl btn-primary text-white text-sm">Book Now</a>
+            </div>
+          </div>
+          <div class="swiper-slide">
+            <div class="card rounded-2xl ring-1 p-4 sm:p-5 text-center h-full">
+              <img src="image/ixigo.png" alt="ixigo" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto mb-3 object-cover" loading="lazy" decoding="async"/>
+              <h3 class="font-semibold">ixigo</h3>
+              <p class="text-sm text-slate-400 mt-1">Trains & flights.</p>
+              <a href="https://www.ixigo.com/" target="_blank" rel="noopener" class="inline-block mt-3 px-3 py-1.5 rounded-xl btn-primary text-white text-sm">Book Now</a>
+            </div>
+          </div>
+          <div class="swiper-slide">
+            <div class="card rounded-2xl ring-1 p-4 sm:p-5 text-center h-full">
+              <img src="image/abhibus.png" alt="abhibus" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto mb-3 object-contain bg-white/5 rounded-full p-2" loading="lazy" decoding="async"/>
+              <h3 class="font-semibold">abhibus</h3>
+              <p class="text-sm text-slate-400 mt-1">Bus · Train · Flight</p>
+              <a href="https://www.abhibus.com/" target="_blank" rel="noopener" class="inline-block mt-3 px-3 py-1.5 rounded-xl btn-primary text-white text-sm">Book Now</a>
+            </div>
+          </div>
+        </div>
+        <div class="swiper-pagination !bottom-0"></div>
+        <div class="swiper-button-next text-slate-700 dark:text-white"></div>
+        <div class="swiper-button-prev text-slate-700 dark:text-white"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Hotels / Cabs / Food -->
+  <section id="section9" class="mx-auto max-w-7xl px-3 sm:px-4 pb-16 sm:pb-20">
+    <div class="grid md:grid-cols-3 gap-4 sm:gap-6">
+      <!-- Hotels -->
+      <article class="reveal relative group rounded-2xl overflow-hidden ring-1 card">
+        <img src="image/hotel.jpg" class="w-full h-56 sm:h-64 object-cover group-hover:scale-105 transition" alt="Hotels" loading="lazy" decoding="async"/>
+        <div class="absolute inset-0 bg-black/40"></div>
+        <div class="absolute inset-0 p-4 sm:p-6 flex flex-col justify-end text-white">
+          <h3 class="text-xl sm:text-2xl font-bold">Hotels Booking</h3>
+          <button onclick="showPopup('hotelPopup')" class="mt-2 inline-flex items-center gap-2 rounded-xl btn-primary text-white px-4 py-2 font-semibold">
+            Book Now <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </article>
+
+      <!-- Cabs -->
+      <article class="reveal relative group rounded-2xl overflow-hidden ring-1 card">
+        <img src="image/cabs.png" class="w-full h-56 sm:h-64 object-cover group-hover:scale-105 transition" alt="Cabs" loading="lazy" decoding="async"/>
+        <div class="absolute inset-0 bg-black/40"></div>
+        <div class="absolute inset-0 p-4 sm:p-6 flex flex-col justify-end text-white">
+          <h3 class="text-xl sm:text-2xl font-bold">Cabs & Taxi</h3>
+          <button onclick="showPopup('taxiPopup')" class="mt-2 inline-flex items-center gap-2 rounded-xl btn-primary text-white px-4 py-2 font-semibold">
+            Book Now <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </article>
+
+      <!-- Food -->
+      <article class="reveal relative group rounded-2xl overflow-hidden ring-1 card">
+        <img src="image/food.jpg" class="w-full h-56 sm:h-64 object-cover group-hover:scale-105 transition" alt="Food" loading="lazy" decoding="async"/>
+        <div class="absolute inset-0 bg-black/40"></div>
+        <div class="absolute inset-0 p-4 sm:p-6 flex flex-col justify-end text-white">
+          <h3 class="text-xl sm:text-2xl font-bold">Food Delivery</h3>
+          <button onclick="showPopup('foodPopup')" class="mt-2 inline-flex items-center gap-2 rounded-xl btn-primary text-white px-4 py-2 font-semibold">
+            Order Now <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </article>
+    </div>
+
+    <!-- Popups -->
+    <div id="hotelPopup" class="popup hidden fixed inset-0 z-[60] grid place-items-center p-3 sm:p-4">
+      <div class="absolute inset-0 bg-black/60" onclick="closePopup('hotelPopup')"></div>
+      <div class="relative w-full max-w-3xl card rounded-2xl ring-1 p-4 sm:p-6 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg sm:text-xl font-bold">Hotels Booking Platforms</h3>
+          <button class="text-slate-400 hover:text-slate-200" onclick="closePopup('hotelPopup')" aria-label="Close"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <a href="https://www.goibibo.com/hotels/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/goibibo.jpeg" class="h-14 w-14 sm:h-16 sm:w-16 object-cover rounded-lg mx-auto mb-2" alt="Goibibo" loading="lazy" decoding="async"/><span class="text-sm font-semibold">Goibibo</span>
+          </a>
+          <a href="https://www.oyorooms.com/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/oyo.png" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-lg mx-auto mb-2" alt="OYO" loading="lazy" decoding="async"/><span class="text-sm font-semibold">OYO</span>
+          </a>
+          <a href="https://www.makemytrip.com/hotels/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/makemytrip.webp" class="h-14 w-14 sm:h-16 sm:w-16 object-cover rounded-lg mx-auto mb-2" alt="MakeMyTrip" loading="lazy" decoding="async"/><span class="text-sm font-semibold">MakeMyTrip</span>
+          </a>
+          <a href="https://www.agoda.com/en-in/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/agoda.png" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-lg mx-auto mb-2" alt="Agoda" loading="lazy" decoding="async"/><span class="text-sm font-semibold">Agoda</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div id="taxiPopup" class="popup hidden fixed inset-0 z-[60] grid place-items-center p-3 sm:p-4">
+      <div class="absolute inset-0 bg-black/60" onclick="closePopup('taxiPopup')"></div>
+      <div class="relative w-full max-w-3xl card rounded-2xl ring-1 p-4 sm:p-6 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg sm:text-xl font-bold">Cabs & Taxi Platforms</h3>
+          <button class="text-slate-400 hover:text-slate-200" onclick="closePopup('taxiPopup')" aria-label="Close"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+          <a href="https://book.olacabs.com/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/ola.png" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-lg mx-auto mb-2" alt="Ola" loading="lazy" decoding="async"/><span class="text-sm font-semibold">Ola</span>
+          </a>
+          <a href="https://www.uber.com/in/en/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/uber.png" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-lg mx-auto mb-2" alt="Uber" loading="lazy" decoding="async"/><span class="text-sm font-semibold">Uber</span>
+          </a>
+          <a href="https://www.rapido.bike/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/Rapido.png" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-lg mx-auto mb-2" alt="Rapido" loading="lazy" decoding="async"/><span class="text-sm font-semibold">Rapido</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div id="foodPopup" class="popup hidden fixed inset-0 z-[60] grid place-items-center p-3 sm:p-4">
+      <div class="absolute inset-0 bg-black/60" onclick="closePopup('foodPopup')"></div>
+      <div class="relative w-full max-w-3xl card rounded-2xl ring-1 p-4 sm:p-6 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg sm:text-xl font-bold">Food Delivery Platforms</h3>
+          <button class="text-slate-400 hover:text-slate-200" onclick="closePopup('foodPopup')" aria-label="Close"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+          <a href="https://www.zomato.com/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/zomato.png" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-lg mx-auto mb-2" alt="Zomato" loading="lazy" decoding="async"/><span class="text-sm font-semibold">Zomato</span>
+          </a>
+          <a href="https://www.swiggy.com/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/swiggy.png" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-lg mx-auto mb-2" alt="Swiggy" loading="lazy" decoding="async"/><span class="text-sm font-semibold">Swiggy</span>
+          </a>
+          <a href="https://blinkit.com/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/blinkit.png" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-lg mx-auto mb-2" alt="Blinkit" loading="lazy" decoding="async"/><span class="text-sm font-semibold">Blinkit</span>
+          </a>
+          <a href="https://www.bigbasket.com/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/bigbasket.png" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-lg mx-auto mb-2" alt="Bigbasket" loading="lazy" decoding="async"/><span class="text-sm font-semibold">Bigbasket</span>
+          </a>
+          <a href="https://www.zeptonow.com/" target="_blank" class="p-3 rounded-xl ring-1 card text-center">
+            <img src="image/zepto.png" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-lg mx-auto mb-2" alt="Zepto" loading="lazy" decoding="async"/><span class="text-sm font-semibold">Zepto</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200/10 bg-white/5 dark:bg-slate-900/30 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-3 sm:px-4 py-8 sm:py-10 text-center text-sm text-white/90">
+      <p>© <span id="year"></span> SafarSaarthi. Curated with ❤️ for seamless travel.</p>
+      <p class="mt-1 text-white/70">We link to external partners only; no personal data is stored.</p>
+    </div>
+  </footer>
+
+  <!-- Swiper -->
+  <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+  <script>
+    // Mobile menu
+    const menuBtn=document.getElementById('menuBtn');
+    const mobileMenu=document.getElementById('mobileMenu');
+    if(menuBtn){
+      menuBtn.addEventListener('click',()=>{
+        const open=mobileMenu.classList.toggle('hidden');
+        menuBtn.setAttribute('aria-expanded', String(!open));
+      });
+    }
+
+    // Reveal on scroll
+    const observer=new IntersectionObserver((entries)=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('show')}),{threshold:0.12});
+    document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+    // Chip scroll + highlight
+    function scrollToChip(id){
+      const el=document.getElementById(id);
+      if(!el) return;
+      const container=el.closest('.overflow-x-auto');
+      if(container){
+        const left=el.offsetLeft - container.clientWidth * 0.05;
+        container.scrollTo({ left, behavior:'smooth' });
+      }else{
+        el.scrollIntoView({ behavior:'smooth', inline:'start', block:'nearest' });
+      }
+      el.classList.add('ring-2','ring-brand-500','scale-[1.01]');
+      setTimeout(()=>el.classList.remove('ring-2','ring-brand-500','scale-[1.01]'),900);
+    }
+    window.scrollToChip=scrollToChip;
+
+    // Swiper init
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const swiper=new Swiper('.mySwiper',{
+      grabCursor:true, centeredSlides:true, slidesPerView:'auto',
+      loop:!prefersReduced,
+      pagination:{el:'.swiper-pagination',clickable:true},
+      navigation:{nextEl:'.swiper-button-next',prevEl:'.swiper-button-prev'},
+      autoplay: prefersReduced ? false : { delay: 3500, disableOnInteraction: true },
+      breakpoints:{
+        0:{ spaceBetween:12, effect:'slide' },
+        640:{ spaceBetween:16, effect:'coverflow', coverflowEffect:{rotate:0,stretch:0,depth:100,modifier:3,slideShadows:false}},
+        1024:{ spaceBetween:20 }
+      }
+    });
+
+    // Right scroller buttons per deck
+    const deckIds=['deckA','deckB','deckC','deckD','deckE'];
+    function addRightScroller(deckId){
+      const deck=document.getElementById(deckId);
+      if(!deck) return;
+      const holder=deck.closest('.deck-holder')||deck.parentElement;
+      if(!holder) return;
+
+      const fade=document.createElement('div');
+      fade.className='deck-fade hidden sm:block';
+      holder.appendChild(fade);
+
+      const btn=document.createElement('button');
+      btn.className='deck-next hidden sm:grid';
+      btn.setAttribute('aria-label','Scroll right');
+      btn.innerHTML='<i class="fa-solid fa-chevron-right"></i>';
+      holder.appendChild(btn);
+
+      const scrollAmount=()=>Math.max(deck.clientWidth*0.9,240);
+      btn.addEventListener('click',()=>deck.scrollBy({left:scrollAmount(),behavior:'smooth'}));
+
+      const toggleFade=()=>{
+        const show = deck.scrollWidth > deck.clientWidth + 8;
+        btn.style.display = show ? 'grid' : 'none';
+        fade.style.display = show ? 'block' : 'none';
+        const atEnd=Math.ceil(deck.scrollLeft+deck.clientWidth)>=deck.scrollWidth-2;
+        fade.style.opacity=atEnd?'0':'1';
+      };
+      deck.addEventListener('scroll',toggleFade,{passive:true});
+      window.addEventListener('resize',toggleFade);
+      toggleFade();
+    }
+    deckIds.forEach(addRightScroller);
+
+    // Popups
+    function showPopup(id){ document.getElementById(id)?.classList.remove('hidden'); document.body.style.overflow='hidden'; }
+    function closePopup(id){ document.getElementById(id)?.classList.add('hidden'); document.body.style.overflow=''; }
+    window.showPopup=showPopup; window.closePopup=closePopup;
+
+    // Year
+    document.getElementById('year').textContent=new Date().getFullYear();
+  </script>
+</body>
+</html>
